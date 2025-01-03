@@ -1,0 +1,6 @@
+apiVersion: v2
+name: consumer
+description: A Helm chart for Consumer Application
+type: application
+version: 1.0.2
+appVersion: "1.0.2" 

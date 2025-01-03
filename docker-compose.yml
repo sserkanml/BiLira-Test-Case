@@ -1,0 +1,279 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:latest
+    ports:
+      - 27017:27017
+    volumes:
+      - mongo-data:/data/db
+    expose:
+      - 27017
+    container_name: mongo-container
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME_FILE=/run/secrets/mongo-init-db-username
+      - MONGO_INITDB_ROOT_PASSWORD_FILE=/run/secrets/mongo-init-db-password
+      - MONGO_INITDB_DATABASE_FILE=/run/secrets/mongo-init-db-database
+    networks:
+      - mongo-network
+    secrets:
+      - mongo-init-db-username
+      - mongo-init-db-password
+      - mongo-init-db-database
+  
+  kafka:
+    image: docker.io/bitnami/kafka:latest
+    container_name: kafka-container
+    restart: always
+    expose:
+      - 9092
+      - 9093
+      - 9094
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+      - "9094:9094"
+    environment:
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+    volumes:
+      - kafka-data:/bitnami/kafka 
+    networks:
+      - kafka-network
+  
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: api-container
+    ports:
+      - 3002:3002
+    networks:
+      - mongo-network
+      - loki-network
+      - prometheus-network
+      - redis-network
+    depends_on:
+      - mongo
+      - loki
+      - redis
+    restart: always
+    expose:
+      - 3002
+    environment:
+      - MONGO_URI_FILE=/run/secrets/mongo-uri
+      - LOKI_HOST=http://loki:3100
+      - REDIS_HOST=redis:6379
+    secrets:
+      - mongo-uri
+  
+  consumer:
+    build:
+      context: ./consumer
+      dockerfile: Dockerfile
+    container_name: consumer-container
+    restart: always
+    depends_on:
+      - kafka
+      - mongo
+      - loki
+    networks:
+      - kafka-network
+      - mongo-network
+      - loki-network
+      - prometheus-network
+    environment:
+      - KAFKA_BROKER_URL=kafka:9092
+      - KAFKA_CLIENT_ID=consumer
+      - KAFKA_TOPIC=user-events
+      - KAFKA_GROUP_ID=consumer-group
+      - MONGO_URI_FILE=/run/secrets/mongo-uri
+      - LOKI_HOST=http://loki:3100
+    secrets:
+      - mongo-uri
+  
+  producer:
+    build:
+      context: ./producer
+      dockerfile: Dockerfile
+    container_name: producer-container
+    restart: always
+    depends_on:
+      - kafka
+      - loki
+    networks:
+      - kafka-network
+      - loki-network
+    environment:
+      - KAFKA_BROKER_URL=kafka:9092
+      - KAFKA_CLIENT_ID=producer
+      - KAFKA_TOPIC=user-events
+      - LOKI_HOST=http://loki:3100
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-container
+    ports:
+      - 9090:9090
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: always
+    depends_on:
+      - mongo
+      - mongo-exporter
+      - kafka
+      - kafka-exporter
+      - api
+      - consumer
+      - producer
+      - loki
+      - redis
+      - redis-exporter
+    networks:
+      - mongo-network
+      - kafka-network
+      - prometheus-network
+      - redis-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-container
+    ports:
+      - 3005:3000
+    expose:
+      - 3005
+    depends_on:
+      - prometheus
+      - loki
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/grafana-admin-password
+    secrets:
+      - grafana-admin-password
+    networks:
+      - prometheus-network
+      - redis-network
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+
+  mongo-exporter:
+    image: percona/mongodb_exporter:0.43.0
+    container_name: mongo-exporter-container
+    restart: always
+    command:
+      - '--mongodb.uri=mongodb://bilira:0d4bFINojjD6MJ@mongo:27017/user-events?authSource=admin'
+      - '--collect-all'
+      - '--discovering-mode'
+      - '--collector.diagnosticdata'
+      - '--collector.replicasetstatus'
+      - '--collector.dbstats'
+      - '--collector.topmetrics'
+    ports:
+      - 9216:9216
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - mongo-network
+      - prometheus-network
+  
+  kafka-exporter:
+    image: danielqsj/kafka-exporter
+    container_name: kafka-exporter-container
+    restart: always
+    command:
+      - --kafka.server=kafka:9092
+    ports:
+      - 9308:9308
+    depends_on:
+      - kafka
+    networks:
+      - kafka-network
+      - prometheus-network
+  
+  loki:
+    image: grafana/loki:2.8.0
+    restart: always
+    container_name: loki-container
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - loki-data:/tmp/loki
+    ports:
+      - 3100:3100
+    command: -config.file=/etc/loki/local-config.yaml
+    
+    networks:
+      - prometheus-network
+      - loki-network
+  
+  redis:
+    image: redis:latest
+    container_name: redis-container
+    restart: always
+    ports:
+      - 6379:6379 
+    volumes:
+      - redis-data:/data
+    networks:
+      - redis-network
+  
+  redis-exporter:
+    image: bitnami/redis-exporter:latest
+    container_name: redis-exporter-container
+    restart: always
+    ports:
+      - 9121:9121
+    depends_on:
+      - redis
+    networks:
+      - redis-network
+
+volumes:
+  kafka-data:
+  mongo-data:
+  grafana-data:
+  loki-data:
+  redis-data:
+
+networks:
+  mongo-network:
+    driver: bridge
+  kafka-network:
+    driver: bridge
+  prometheus-network:
+    driver: bridge
+  loki-network:
+    driver: bridge
+  redis-network:
+    driver: bridge
+
+secrets:
+  mongo-init-db-username:
+    file: ./secrets/mongo-init-db-username.txt
+  mongo-init-db-password:
+    file: ./secrets/mongo-init-db-password.txt
+  mongo-init-db-database:
+    file: ./secrets/mongo-init-db-database.txt
+  mongo-uri:
+    file: ./secrets/mongo-uri.txt
+  grafana-admin-password:
+    file: ./secrets/grafana-admin-password.txt

@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongo-exporter:9216']
+    metrics_path: '/metrics'
+  
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+    metrics_path: '/metrics'
+
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+    metrics_path: '/metrics'
+
+  - job_name: 'nestjs_producer_metrics'
+    static_configs:
+      - targets: ['producer:3001']
+    metrics_path: '/metrics'
+
+  - job_name: 'nestjs_consumer_metrics'
+    static_configs:
+      - targets: ['consumer:3000']
+    metrics_path: '/metrics'
+
+  - job_name: 'nestjs_api_metrics'
+    static_configs:
+      - targets: ['api:3002']
+    metrics_path: '/metrics'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    metrics_path: '/metrics'

@@ -1,0 +1,29 @@
+replicaCount: 1
+
+image:
+  repository: bilira-api
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: LoadBalancer  
+  port: 3002
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+metrics:
+  enabled: true
+  path: "/metrics"
+  port: 3002
+
+env:
+  
+  MONGO_URI: "mongodb://mongodb.default.svc.cluster.local:27017/user-events?authSource=admin"
+  REDIS_HOST: "redis-master.default.svc.cluster.local:6379"
+  LOKI_HOST: "http://loki.default.svc.cluster.local:3100" 

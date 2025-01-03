@@ -1,0 +1,31 @@
+replicaCount: 1
+
+image:
+  repository: bilira-consumer
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+metrics:
+  enabled: true
+  path: "/metrics"
+  port: 3000
+
+env:
+  KAFKA_BROKER_URL: "kafka-0.kafka-headless.default.svc.cluster.local:9092"
+  KAFKA_CLIENT_ID: "consumer"
+  KAFKA_TOPIC: "user-events"
+  KAFKA_GROUP_ID: "consumer-group"
+  MONGO_URI: "mongodb://mongodb.default.svc.cluster.local:27017/user-events"
+  LOKI_HOST: "http://loki.default.svc.cluster.local:3100"
