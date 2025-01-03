@@ -12,4 +12,9 @@ COPY . .
 
 RUN pnpm build
 
-CMD ["pnpm", "start:prod"]
+# Add init script
+COPY init-topics.sh .
+RUN chmod +x init-topics.sh
+
+# Use shell script as entrypoint
+ENTRYPOINT ["./init-topics.sh"]
