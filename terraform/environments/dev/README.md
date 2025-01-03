@@ -131,6 +131,11 @@ This document outlines the development environment setup for our microservices a
    ```bash
    cd terraform/environments/dev
    terraform init
+   terraform plan
+   terraform apply -target=aws_ssm_parameter.mongodb_root_password \
+               -target=aws_ssm_parameter.mongodb_username \
+               -target=aws_ssm_parameter.mongodb_password \
+               -target=aws_ssm_parameter.mongodb_database
    terraform apply
    ```
 
