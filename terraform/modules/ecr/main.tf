@@ -38,7 +38,6 @@ resource "aws_ecr_lifecycle_policy" "main" {
   })
 }
 
-# Repository policy for each repository
 resource "aws_ecr_repository_policy" "main" {
   for_each      = toset(var.repository_names)
   repository    = aws_ecr_repository.main[each.key].name

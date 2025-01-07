@@ -46,7 +46,6 @@ export class ConsumeService implements OnModuleInit {
 
     async onModuleInit() {
         try {
-            // İlk olarak topic'leri oluştur/kontrol et
             await this.ensureTopicsExist();
 
             await this.producer.connect();
@@ -55,26 +54,22 @@ export class ConsumeService implements OnModuleInit {
 
             this.logger.log({ message: 'Connected to Kafka', level: 'info' });
 
-            // Ana topic'e subscribe ol
             await this.consumer.subscribe({ 
                 topic: this.configService.get<string>('KAFKA_TOPIC'), 
                 fromBeginning: true 
             });
 
-            // Retry topic'e subscribe ol
             await this.retryConsumer.subscribe({ 
                 topic: RETRY_TOPIC, 
                 fromBeginning: true 
             });
 
-            // Ana mesajları işle
             await this.consumer.run({
                 eachMessage: async ({ topic, partition, message }) => {
                     await this.processMessage(message, false);
                 },
             });
 
-            // Retry mesajlarını işle
             await this.retryConsumer.run({
                 eachMessage: async ({ topic, partition, message }) => {
                     await this.processMessage(message, true);
@@ -93,12 +88,10 @@ export class ConsumeService implements OnModuleInit {
         try {
             await admin.connect();
             
-            // Mevcut topic'leri al
             const topics = await admin.listTopics();
             
             const topicsToCreate = [];
             
-            // Retry topic kontrolü
             if (!topics.includes(RETRY_TOPIC)) {
                 topicsToCreate.push({
                     topic: RETRY_TOPIC,
@@ -107,7 +100,6 @@ export class ConsumeService implements OnModuleInit {
                 });
             }
             
-            // DLQ topic kontrolü
             if (!topics.includes(DLQ_TOPIC)) {
                 topicsToCreate.push({
                     topic: DLQ_TOPIC,
@@ -116,7 +108,6 @@ export class ConsumeService implements OnModuleInit {
                 });
             }
             
-            // Eksik topic'leri oluştur
             if (topicsToCreate.length > 0) {
                 await admin.createTopics({
                     topics: topicsToCreate
@@ -167,7 +158,6 @@ export class ConsumeService implements OnModuleInit {
                 });
             }
 
-            // MongoDB'ye kaydet
             const newMessage = new this.messageModel(parsedMessage);
             const savedMessage = await newMessage.save();
 
