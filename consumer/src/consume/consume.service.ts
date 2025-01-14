@@ -31,10 +31,20 @@ export class ConsumeService implements OnModuleInit {
         this.kafka = new Kafka({
             clientId: this.configService.get<string>('KAFKA_CLIENT_ID'),
             brokers: [this.configService.get<string>('KAFKA_BROKER_URL')],
+            retry: {
+                initialRetryTime: 1000,
+                retries: 10
+            }
         });
 
         this.consumer = this.kafka.consumer({
-            groupId: this.configService.get<string>('KAFKA_GROUP_ID')
+            groupId: this.configService.get<string>('KAFKA_GROUP_ID'),
+            maxWaitTimeInMs: 5000,
+            retry: {
+                maxRetryTime: 30000,
+                initialRetryTime: 1000,
+                retries: 10
+            }
         });
 
         this.retryConsumer = this.kafka.consumer({
