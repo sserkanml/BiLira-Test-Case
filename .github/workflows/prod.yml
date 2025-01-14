@@ -42,12 +42,12 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
       run: |
         # Build Docker image
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG ${{ matrix.service }}
-        docker tag $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:latest
+        docker build -t $ECR_REGISTRY/${{ matrix.service }}:$IMAGE_TAG ${{ matrix.service }}
+        docker tag $ECR_REGISTRY/${{ matrix.service }}:$IMAGE_TAG $ECR_REGISTRY/${{ matrix.service }}:latest
         
         # Push Docker image
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:latest
+        docker push $ECR_REGISTRY/${{ matrix.service }}:$IMAGE_TAG
+        docker push $ECR_REGISTRY/${{ matrix.service }}:latest
 
     - name: Update kube config
       run: aws eks update-kubeconfig --name bilira-eks-cluster --region ${{ env.AWS_REGION }}
@@ -55,7 +55,7 @@ jobs:
     - name: Deploy to EKS
       run: |
         # Update deployment image
-        kubectl set image deployment/${{ matrix.service }} ${{ matrix.service }}=$ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG -n default
+        kubectl set image deployment/${{ matrix.service }} ${{ matrix.service }}=$ECR_REGISTRY/${{ matrix.service }}:$IMAGE_TAG -n default
         
         # Verify deployment
         kubectl rollout status deployment/${{ matrix.service }} -n default
