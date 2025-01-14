@@ -23,7 +23,7 @@ metrics:
   port: 3000
 
 env:
-  KAFKA_BROKER_URL: "kafka-0.kafka-headless.default.svc.cluster.local:9092"
+  KAFKA_BROKER_URL: "kafka.default.svc.cluster.local:9092"
   KAFKA_CLIENT_ID: "consumer"
   KAFKA_TOPIC: "user-events"
   KAFKA_GROUP_ID: "consumer-group"

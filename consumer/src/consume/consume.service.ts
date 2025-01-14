@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Logger, Inject } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger, Inject, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Consumer, Kafka, Producer } from 'kafkajs';
@@ -17,7 +17,7 @@ interface RetryMessage {
 }
 
 @Injectable()
-export class ConsumeService implements OnModuleInit {
+export class ConsumeService implements OnModuleInit, OnModuleDestroy {
     private consumer: Consumer;
     private retryConsumer: Consumer;
     private producer: Producer;
@@ -170,7 +170,7 @@ export class ConsumeService implements OnModuleInit {
 
             const newMessage = new this.messageModel(parsedMessage);
             const savedMessage = await newMessage.save();
-
+            console.log("merhaba");
             this.logger.log({
                 message: 'Message saved to MongoDB',
                 data: {
@@ -270,8 +270,14 @@ export class ConsumeService implements OnModuleInit {
     }
 
     async onModuleDestroy() {
-        await this.consumer.disconnect();
-        await this.retryConsumer.disconnect();
-        await this.producer.disconnect();
+        try {
+            this.logger.log('Gracefully shutting down consumer...');
+            await this.consumer.disconnect();
+            await this.retryConsumer.disconnect();
+            await this.producer.disconnect();
+            this.logger.log('Consumer shutdown complete');
+        } catch (error) {
+            this.logger.error('Error during shutdown:', error);
+        }
     }
 }
