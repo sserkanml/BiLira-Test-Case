@@ -47,7 +47,7 @@ jobs:
         ECR_REGISTRY: ${{ steps.get-aws-account.outputs.account_id }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        helm upgrade --install ${{ matrix.service }} ../../k8s/helm/${{ matrix.service }} \
+        helm upgrade --install ${{ matrix.service }} ./k8s/helm/${{ matrix.service }} \
           --set image.repository=$ECR_REGISTRY/bilira-${{ matrix.service }} \
           --set image.tag=$IMAGE_TAG \
           --namespace default \
