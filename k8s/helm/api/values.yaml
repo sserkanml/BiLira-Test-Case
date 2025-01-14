@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: bilira-api
+  repository: ""
   tag: latest
   pullPolicy: Always
 

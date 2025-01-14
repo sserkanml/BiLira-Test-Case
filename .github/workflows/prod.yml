@@ -30,34 +30,25 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+    - name: Get AWS account ID
+      id: get-aws-account
+      run: |
+        echo "::set-output name=account_id::$(aws sts get-caller-identity --query Account --output text)"
 
-    - name: Build, tag, and push image to Amazon ECR
+    - name: Deploy to EKS with Helm
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps.get-aws-account.outputs.account_id }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        # Build Docker image
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG ${{ matrix.service }}
-        docker tag $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:latest
-        
-        # Push Docker image
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:latest
+        helm upgrade --install ${{ matrix.service }} ../../k8s/helm/${{ matrix.service }} \
+          --set image.repository=$ECR_REGISTRY/bilira-${{ matrix.service }} \
+          --set image.tag=$IMAGE_TAG \
+          --namespace default \
+          --wait
 
-    - name: Update kube config
-      run: aws eks update-kubeconfig --name bilira-eks-cluster --region ${{ env.AWS_REGION }}
-
-    - name: Deploy to EKS
-      run: |
-        # Update deployment image
-        kubectl set image deployment/${{ matrix.service }} ${{ matrix.service }}=$ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG -n default
-        
-        # Verify deployment
+        # Deployment'ı kontrol et
         kubectl rollout status deployment/${{ matrix.service }} -n default
 
   

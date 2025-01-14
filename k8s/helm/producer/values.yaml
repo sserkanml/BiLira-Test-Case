@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/bilira-producer
+  repository: ""
   tag: latest
   pullPolicy: Always
 
