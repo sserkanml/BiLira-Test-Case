@@ -17,7 +17,6 @@ export class AppService {
 
     try {
       this.logger.log('Cron job is triggered');
-      console.log("merhaba");
       await this.produceService.startProducing();
       this.logger.log('Cron job is finished');
     } catch (error) {
