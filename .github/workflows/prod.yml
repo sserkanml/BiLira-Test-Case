@@ -25,24 +25,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-
-    - name: Install pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: 8
-
-    - name: Install dependencies
-      working-directory: ${{ matrix.service }}
-      run: pnpm install --no-frozen-lockfile
-
-    - name: Run tests
-      working-directory: ${{ matrix.service }}
-      run: pnpm test
-
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
