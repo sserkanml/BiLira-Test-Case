@@ -10,10 +10,10 @@ const RETRY_TOPIC = 'user-events-retry';
 const DLQ_TOPIC = 'user-events-dlq';
 
 interface RetryMessage {
-  originalMessage: any;
-  retryCount: number;
-  error: string;
-  timestamp: number;
+    originalMessage: any;
+    retryCount: number;
+    error: string;
+    timestamp: number;
 }
 
 @Injectable()
@@ -24,7 +24,7 @@ export class ConsumeService implements OnModuleInit {
     private kafka: Kafka;
 
     constructor(
-        private readonly configService: ConfigService, 
+        private readonly configService: ConfigService,
         @InjectModel(Message.name) private readonly messageModel: Model<Message>,
         @Inject('LOGGER') private readonly logger: Logger
     ) {
@@ -33,12 +33,12 @@ export class ConsumeService implements OnModuleInit {
             brokers: [this.configService.get<string>('KAFKA_BROKER_URL')],
         });
 
-        this.consumer = this.kafka.consumer({ 
-            groupId: this.configService.get<string>('KAFKA_GROUP_ID') 
+        this.consumer = this.kafka.consumer({
+            groupId: this.configService.get<string>('KAFKA_GROUP_ID')
         });
 
-        this.retryConsumer = this.kafka.consumer({ 
-            groupId: `${this.configService.get<string>('KAFKA_GROUP_ID')}-retry` 
+        this.retryConsumer = this.kafka.consumer({
+            groupId: `${this.configService.get<string>('KAFKA_GROUP_ID')}-retry`
         });
 
         this.producer = this.kafka.producer();
@@ -46,7 +46,6 @@ export class ConsumeService implements OnModuleInit {
 
     async onModuleInit() {
         try {
-            // İlk olarak topic'leri oluştur/kontrol et
             await this.ensureTopicsExist();
 
             await this.producer.connect();
@@ -55,26 +54,22 @@ export class ConsumeService implements OnModuleInit {
 
             this.logger.log({ message: 'Connected to Kafka', level: 'info' });
 
-            // Ana topic'e subscribe ol
-            await this.consumer.subscribe({ 
-                topic: this.configService.get<string>('KAFKA_TOPIC'), 
-                fromBeginning: true 
+            await this.consumer.subscribe({
+                topic: this.configService.get<string>('KAFKA_TOPIC'),
+                fromBeginning: true
             });
 
-            // Retry topic'e subscribe ol
-            await this.retryConsumer.subscribe({ 
-                topic: RETRY_TOPIC, 
-                fromBeginning: true 
+            await this.retryConsumer.subscribe({
+                topic: RETRY_TOPIC,
+                fromBeginning: true
             });
 
-            // Ana mesajları işle
             await this.consumer.run({
                 eachMessage: async ({ topic, partition, message }) => {
                     await this.processMessage(message, false);
                 },
             });
 
-            // Retry mesajlarını işle
             await this.retryConsumer.run({
                 eachMessage: async ({ topic, partition, message }) => {
                     await this.processMessage(message, true);
@@ -89,16 +84,14 @@ export class ConsumeService implements OnModuleInit {
 
     private async ensureTopicsExist() {
         const admin = this.kafka.admin();
-        
+
         try {
             await admin.connect();
-            
-            // Mevcut topic'leri al
+
             const topics = await admin.listTopics();
-            
+
             const topicsToCreate = [];
-            
-            // Retry topic kontrolü
+
             if (!topics.includes(RETRY_TOPIC)) {
                 topicsToCreate.push({
                     topic: RETRY_TOPIC,
@@ -106,8 +99,7 @@ export class ConsumeService implements OnModuleInit {
                     replicationFactor: 1
                 });
             }
-            
-            // DLQ topic kontrolü
+
             if (!topics.includes(DLQ_TOPIC)) {
                 topicsToCreate.push({
                     topic: DLQ_TOPIC,
@@ -115,21 +107,20 @@ export class ConsumeService implements OnModuleInit {
                     replicationFactor: 1
                 });
             }
-            
-            // Eksik topic'leri oluştur
+
             if (topicsToCreate.length > 0) {
                 await admin.createTopics({
                     topics: topicsToCreate
                 });
-                this.logger.log({ 
+                this.logger.log({
                     message: `Created topics: ${topicsToCreate.map(t => t.topic).join(', ')}`,
                     level: 'info'
                 });
             }
         } catch (error) {
-            this.logger.error({ 
-                message: 'Error ensuring topics exist:', 
-                error, 
+            this.logger.error({
+                message: 'Error ensuring topics exist:',
+                error,
                 level: 'error'
             });
             throw error;
@@ -148,37 +139,37 @@ export class ConsumeService implements OnModuleInit {
                 const retryMessage: RetryMessage = JSON.parse(value);
                 parsedMessage = retryMessage.originalMessage;
                 retryCount = retryMessage.retryCount;
-                
-                this.logger.log({ 
+
+                this.logger.log({
                     message: `Processing retry message:`,
                     data: {
                         originalMessage: parsedMessage,
                         retryCount: retryCount,
                         error: retryMessage.error
                     },
-                    level: 'info' 
+                    level: 'info'
                 });
             } else {
                 parsedMessage = JSON.parse(value);
-                this.logger.log({ 
+                this.logger.log({
                     message: `Processing new message:`,
                     data: parsedMessage,
-                    level: 'info' 
+                    level: 'info'
                 });
             }
 
-            // MongoDB'ye kaydet
             const newMessage = new this.messageModel(parsedMessage);
             const savedMessage = await newMessage.save();
+            console.log("merhaba");
 
-            this.logger.log({ 
-                message: 'Message saved to MongoDB', 
+            this.logger.log({
+                message: 'Message saved to MongoDB',
                 data: {
                     messageId: savedMessage._id,
                     content: savedMessage,
                     retryCount: retryCount
                 },
-                level: 'info' 
+                level: 'info'
             });
 
         } catch (error) {
@@ -202,10 +193,10 @@ export class ConsumeService implements OnModuleInit {
             parsedMessage = messageValue.toString();
         }
 
-        this.logger.error({ 
-            message: `Error processing message: ${error.message}`, 
-            error, 
-            level: 'error' 
+        this.logger.error({
+            message: `Error processing message: ${error.message}`,
+            error,
+            level: 'error'
         });
 
         if (retryCount < MAX_RETRIES) {
@@ -234,15 +225,15 @@ export class ConsumeService implements OnModuleInit {
                 }]
             });
 
-            this.logger.log({ 
-                message: `Message sent to retry topic (attempt ${retryMessage.retryCount})`, 
-                level: 'info' 
+            this.logger.log({
+                message: `Message sent to retry topic (attempt ${retryMessage.retryCount})`,
+                level: 'info'
             });
         } catch (error) {
-            this.logger.error({ 
-                message: 'Failed to send message to retry topic', 
-                error, 
-                level: 'error' 
+            this.logger.error({
+                message: 'Failed to send message to retry topic',
+                error,
+                level: 'error'
             });
         }
     }
@@ -256,15 +247,15 @@ export class ConsumeService implements OnModuleInit {
                 }]
             });
 
-            this.logger.error({ 
-                message: `Message sent to DLQ after ${dlqMessage.retryCount} retries`, 
-                level: 'error' 
+            this.logger.error({
+                message: `Message sent to DLQ after ${dlqMessage.retryCount} retries`,
+                level: 'error'
             });
         } catch (error) {
-            this.logger.error({ 
-                message: 'Failed to send message to DLQ', 
-                error, 
-                level: 'error' 
+            this.logger.error({
+                message: 'Failed to send message to DLQ',
+                error,
+                level: 'error'
             });
         }
     }
