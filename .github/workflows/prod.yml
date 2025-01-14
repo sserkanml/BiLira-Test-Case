@@ -55,9 +55,9 @@ jobs:
     - name: Deploy to EKS
       run: |
         # Update deployment image
-        kubectl set image deployment/${{ matrix.service }}-deployment ${{ matrix.service }}=$ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG -n default
+        kubectl set image deployment/${{ matrix.service }} ${{ matrix.service }}=$ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG -n default
         
         # Verify deployment
-        kubectl rollout status deployment/${{ matrix.service }}-deployment -n default
+        kubectl rollout status deployment/${{ matrix.service }} -n default
 
   
