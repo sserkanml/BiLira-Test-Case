@@ -1,4 +1,3 @@
-# environments/dev/variables.tf
 variable "aws_region" {
   description = "AWS Region"
   type        = string
@@ -41,7 +40,6 @@ variable "public_subnets" {
   default     = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
 }
 
-# Node Group Variables
 variable "node_groups" {
   description = "Node groups configuration"
   type = map(object({
@@ -64,7 +62,6 @@ variable "node_groups" {
   }
 }
 
-# ECR Variables
 variable "ecr_repositories" {
   description = "List of ECR repository names to create"
   type        = list(string)
