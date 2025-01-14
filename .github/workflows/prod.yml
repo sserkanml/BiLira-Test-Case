@@ -38,6 +38,10 @@ jobs:
       run: |
         echo "::set-output name=account_id::$(aws sts get-caller-identity --query Account --output text)"
 
+    - name: Configure kubectl
+      run: |
+        aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name bilira-eks-cluster  
+
     - name: Deploy to EKS with Helm
       env:
         ECR_REGISTRY: ${{ steps.get-aws-account.outputs.account_id }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
