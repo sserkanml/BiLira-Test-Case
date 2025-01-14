@@ -4,7 +4,6 @@ import { ConfigService } from '@nestjs/config';
 
 export const createLogger = (configService: ConfigService): winston.Logger => {
     const lokiUrl = configService.get<string>('LOKI_HOST');
-    console.log(lokiUrl);
 
     return winston.createLogger({
         transports: [
