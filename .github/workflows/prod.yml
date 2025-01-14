@@ -69,24 +69,22 @@ jobs:
         # Debug için image bilgisini yazdır
         echo "Using image: $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG"
         
-        # Önceki başarısız release'i temizle
-        helm rollback ${{ matrix.service }} 0 --namespace default || true
-        helm uninstall ${{ matrix.service }} --namespace default || true
+        # Helm template'i kontrol et
+        echo "Checking Helm template..."
+        helm template ${{ matrix.service }} ./k8s/helm/${{ matrix.service }} \
+          --set image.repository=$ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }} \
+          --set image.tag=$IMAGE_TAG
         
-        # Yeni deployment'ı yap
+        # Deployment yap
         helm upgrade --install ${{ matrix.service }} ./k8s/helm/${{ matrix.service }} \
           --set image.repository=$ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }} \
           --set image.tag=$IMAGE_TAG \
           --namespace default \
-          --atomic \
-          --cleanup-on-fail \
           --wait \
-          --timeout 5m
+          --timeout 5m \
+          --debug
         
-        # Pod durumunu kontrol et
-        kubectl get pods -n default | grep ${{ matrix.service }}
-        
-        # Detaylı pod bilgisi
-        kubectl describe pod -l app=${{ matrix.service }} -n default
+        # Deployment durumunu kontrol et
+        kubectl get all -l app=${{ matrix.service }} -n default
 
   
