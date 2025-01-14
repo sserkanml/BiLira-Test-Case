@@ -42,18 +42,43 @@ jobs:
       run: |
         aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name bilira-eks-cluster  
 
-    - name: Deploy to EKS with Helm
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, tag, and push image to Amazon ECR
       env:
-        ECR_REGISTRY: ${{ steps.get-aws-account.outputs.account_id }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
+        # Build Docker image
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG ./${{ matrix.service }}
+        
+        # Tag also as latest
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:latest
+        
+        # Push both tags
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:latest
+
+    - name: Deploy to EKS with Helm
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Debug için image bilgisini yazdır
+        echo "Using image: $ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }}:$IMAGE_TAG"
+        
         helm upgrade --install ${{ matrix.service }} ./k8s/helm/${{ matrix.service }} \
-          --set image.repository=$ECR_REGISTRY/bilira-${{ matrix.service }} \
+          --set image.repository=$ECR_REGISTRY/$ECR_REPOSITORY_PREFIX-${{ matrix.service }} \
           --set image.tag=$IMAGE_TAG \
           --namespace default \
           --wait
 
-        # Deployment'ı kontrol et
-        kubectl rollout status deployment/${{ matrix.service }} -n default
+        # Pod durumunu kontrol et
+        kubectl get pods -n default | grep ${{ matrix.service }}
+        
+        # Detaylı pod bilgisi
+        kubectl describe pod -l app=${{ matrix.service }} -n default
 
   
