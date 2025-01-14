@@ -19,7 +19,7 @@ export class AppService {
   ) {
     try {
       this.logger.log({ message: 'Fetching messages', level: 'info' });
-
+      console.log("merhaba");
       const cacheKey = `messages:${page}:${limit}:${eventType || 'all'}:${startDate || 'none'}:${endDate || 'none'}`;
 
       const cachedData = await this.redisClient.get(cacheKey);
