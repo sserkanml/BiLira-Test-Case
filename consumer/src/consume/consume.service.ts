@@ -160,7 +160,6 @@ export class ConsumeService implements OnModuleInit {
 
             const newMessage = new this.messageModel(parsedMessage);
             const savedMessage = await newMessage.save();
-            console.log("merhaba");
 
             this.logger.log({
                 message: 'Message saved to MongoDB',
